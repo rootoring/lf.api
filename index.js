@@ -4,8 +4,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv");
 const User = require("./models/User");
-const cors = require('cors');
-
+const cors = require("cors");
 
 // Подключаем CORS middleware
 
@@ -17,9 +16,7 @@ const PORT = process.env.PORT || 8080;
 const JWT_SECRET = process.env.JWT_SECRET;
 
 mongoose
-  .connect(
-    process.env.MONGO_URI,
-  )
+  .connect(process.env.MONGO_URI)
   .then(() => console.log("Подключено к MongoDB"))
   .catch((err) => console.error("Ошибка подключения к MongoDB:", err));
 
@@ -27,60 +24,80 @@ app.get("/", (req, res) => {
   res.send("aa");
 });
 app.post("/register", async (req, res) => {
-  const { username, password } = req.body;
-
+  const { username, password, tel } = req.body;
+  let randomId = () => {
+    return Math.random();
+  };
+  let id = randomId();
   // Проверка наличия имени пользователя
   const existingUser = await User.findOne({ username });
   if (existingUser) {
-    return res.status(400).json({ message: "Пользователь уже существует" });
+    return res
+      .status(400)
+      .json({ message: "Пользователь уже существует", status: "danger", id });
   }
 
   // Хеширование пароля
   const hashedPassword = await bcrypt.hash(password, 10);
 
   // Создание нового пользователя
-  const newUser = new User({ username, password: hashedPassword });
+  const newUser = new User({ username, password: hashedPassword, tel });
   await newUser.save();
 
-  res.json({ message: "Регистрация успешна" });
+  res.json({
+    userData: newUser,
+    meta: { message: "Регистрация успешна", status: "success", id },
+  });
 });
 
-
-app.post('/login', async (req, res) => {
+app.post("/login", async (req, res) => {
   const { username, password } = req.body;
-  console.log(username)
+  console.log(username);
 
-  // Проверка наличия пользователя 
+  // Проверка наличия пользователя
   const user = await User.findOne({ username });
+  let randomId = () => {
+    return Math.random();
+  };
+  let id = randomId();
   if (!user) {
-    return res.status(400).json({ message: 'Неверные имя пользователя или пароль' });
+    return res.status(400).json({
+      message: "Неверное имя пользователя",
+      status: "danger",
+      id: id,
+    });
   }
 
   // Проверка пароля
   const isMatch = await bcrypt.compare(password, user.password);
   if (!isMatch) {
-    return res.status(400).json({ message: 'Неверные имя пользователя или пароль' });
+    return res.status(400).json({
+      message: "Неверный пароль",
+      status: "danger",
+      id: id,
+    });
   }
 
   // Генерация JWT токена
-   const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '24h' });
+  const token = jwt.sign({ userId: user._id }, JWT_SECRET, {
+    expiresIn: "24h",
+  });
 
   res.json({
-    _id:user._id,
-    username:user.username,
-    films:user.films,
+    _id: user._id,
+    username: user.username,
+    films: user.films,
     token,
-   });
+  });
 });
-
 
 app.get("/users", async (req, res) => {
   const { user } = req.query;
-  if(!user){
+  if (!user) {
     const users = await User.find();
-    console.log(users)
+    console.log(users);
     res.json({ data: users, message: "все юзеры " });
-    return
+    return;
   }
 
   const existingUser = await User.findOne({ username: user });
@@ -92,29 +109,62 @@ app.get("/users", async (req, res) => {
   res.json({ data: existingUser, message: "Регистрация успешна" });
 });
 
-app.put('/users/:id/add-film', async (req, res) => {
+app.put("/users/:id/add-film", async (req, res) => {
   try {
+    let randomId = () => {
+      return Math.random();
+    };
+    let id = randomId();
     const updatedUser = await User.findByIdAndUpdate(
       req.params.id,
-      { $push: { films: req.body.films } },  // Добавляем новый элемент в массив
+      { $push: { films: { $each: [req.body.films[0]], $position: 0 } } }, // Добавляем новый элемент в массив
       { new: true }
     );
-    res.json(updatedUser);
+    res.json({
+      userData: updatedUser,
+      meta: {
+        message: "Фильм сохранён",
+        status: "success",
+        id,
+      },
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
-app.put('/users/:id/remove-film', async (req, res) => {
+app.put("/users/:id/remove-film", async (req, res) => {
   try {
-    console.log( req.body.films)
+    let randomId = () => {
+      return Math.random();
+    };
+    let id = randomId();
+    console.log(req.body.films);
     const updatedUser = await User.findByIdAndUpdate(
       req.params.id,
-      { $pull: { films: req.body.films } },  // Удаляем элемент из массива
+      { $pull: { films: req.body.films[0] } }, // Удаляем элемент из массива
       { new: true }
     );
-    res.json({updatedUser});
-  } catch (error) { 
+    res.json({
+      userData: updatedUser,
+      meta: {
+        message: "Фильм удален",
+        status: "danger",
+        id,
+      },
+    });
+  } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
+// const deleteAllUsers = async () => {
+//   try {
+//     // Удаление всех документов в коллекции User
+//     const result = await User.deleteMany({});
+//     console.log(`Удалено пользователей: ${result.deletedCount}`);
+//   } catch (error) {
+//     console.error("Ошибка при удалении пользователей:", error.message);
+//   }
+// };
+
+// deleteAllUsers();
 app.listen(PORT);
