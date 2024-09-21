@@ -116,13 +116,13 @@ app.put("/users/:id/add-film", async (req, res) => {
   const token = req.headers.authorization;
 
   if (!token) {
-    return res
-      .status(401)
-      .json({meta: {
+    return res.status(401).json({
+      meta: {
         message: "Нет токена",
         status: "danger",
         id,
-      },});
+      },
+    });
   }
   try {
     let randomId = () => {
@@ -138,11 +138,12 @@ app.put("/users/:id/add-film", async (req, res) => {
     );
     res.json({
       userData: {
-        _id:updatedUser._id,
-        username:updatedUser.username,
-        tel:updatedUser.tel, 
-        films:updatedUser.films,
-        token},
+        _id: updatedUser._id,
+        username: updatedUser.username,
+        tel: updatedUser.tel,
+        films: updatedUser.films,
+        token,
+      },
       meta: {
         message: "Фильм сохранён",
         status: "success",
@@ -150,7 +151,13 @@ app.put("/users/:id/add-film", async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({
+      meta: {
+        message: "Неверный токен",
+        status: "danger",
+        id,
+      },
+    });
   }
 });
 app.put("/users/:id/remove-film", async (req, res) => {
@@ -175,11 +182,12 @@ app.put("/users/:id/remove-film", async (req, res) => {
     );
     res.json({
       userData: {
-        _id:updatedUser._id,
-        username:updatedUser.username,
-        tel:updatedUser.tel, 
-        films:updatedUser.films,
-        token},
+        _id: updatedUser._id,
+        username: updatedUser.username,
+        tel: updatedUser.tel,
+        films: updatedUser.films,
+        token,
+      },
       meta: {
         message: "Фильм удален",
         status: "danger",
@@ -187,7 +195,13 @@ app.put("/users/:id/remove-film", async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({
+      meta: {
+        message: "Неверный токен",
+        status: "danger",
+        id,
+      },
+    });
   }
 });
 
@@ -211,7 +225,7 @@ app.get("/protected", (req, res) => {
 // const deleteAllUsers = async () => {
 //   try {
 //     // Удаление всех документов в коллекции User
-//     const result = await User.deleteMany({});
+//     const result = await User.deleteMany({ username: "Ррол" });
 //     console.log(`Удалено пользователей: ${result.deletedCount}`);
 //   } catch (error) {
 //     console.error("Ошибка при удалении пользователей:", error.message);
