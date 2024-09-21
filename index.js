@@ -41,11 +41,16 @@ app.post("/register", async (req, res) => {
   const hashedPassword = await bcrypt.hash(password, 10);
 
   // Создание нового пользователя
-  const newUser = new User({ username, password: hashedPassword, tel });
-  await newUser.save();
-
+  const user = new User({ username, password: hashedPassword, tel });
+  await user.save();
+  const token = jwt.sign({ userId: user._id }, JWT_SECRET, {});
   res.json({
-    userData: newUser,
+    userData: {
+      _id: user._id,
+      username: user.username,
+      films: user.films,
+      token,
+    },
     meta: { message: "Регистрация успешна", status: "success", id },
   });
 });
@@ -79,9 +84,7 @@ app.post("/login", async (req, res) => {
   }
 
   // Генерация JWT токена
-  const token = jwt.sign({ userId: user._id }, JWT_SECRET, {
-    expiresIn: "24h",
-  });
+  const token = jwt.sign({ userId: user._id }, JWT_SECRET, {});
 
   res.json({
     _id: user._id,
@@ -110,18 +113,36 @@ app.get("/users", async (req, res) => {
 });
 
 app.put("/users/:id/add-film", async (req, res) => {
+  const token = req.headers.authorization;
+
+  if (!token) {
+    return res
+      .status(401)
+      .json({meta: {
+        message: "Нет токена",
+        status: "danger",
+        id,
+      },});
+  }
   try {
     let randomId = () => {
       return Math.random();
     };
     let id = randomId();
+    jwt.verify(token, JWT_SECRET);
+
     const updatedUser = await User.findByIdAndUpdate(
       req.params.id,
       { $push: { films: { $each: [req.body.films[0]], $position: 0 } } }, // Добавляем новый элемент в массив
       { new: true }
     );
     res.json({
-      userData: updatedUser,
+      userData: {
+        _id:updatedUser._id,
+        username:updatedUser.username,
+        tel:updatedUser.tel, 
+        films:updatedUser.films,
+        token},
       meta: {
         message: "Фильм сохранён",
         status: "success",
@@ -134,6 +155,14 @@ app.put("/users/:id/add-film", async (req, res) => {
 });
 app.put("/users/:id/remove-film", async (req, res) => {
   try {
+    const token = req.headers.authorization;
+
+    if (!token) {
+      return res
+        .status(401)
+        .json({ message: "Нет токена, авторизация отклонена" });
+    }
+    jwt.verify(token, JWT_SECRET);
     let randomId = () => {
       return Math.random();
     };
@@ -145,7 +174,12 @@ app.put("/users/:id/remove-film", async (req, res) => {
       { new: true }
     );
     res.json({
-      userData: updatedUser,
+      userData: {
+        _id:updatedUser._id,
+        username:updatedUser.username,
+        tel:updatedUser.tel, 
+        films:updatedUser.films,
+        token},
       meta: {
         message: "Фильм удален",
         status: "danger",
@@ -156,6 +190,24 @@ app.put("/users/:id/remove-film", async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 });
+
+app.get("/protected", (req, res) => {
+  const token = req.headers.authorization;
+
+  if (!token) {
+    return res
+      .status(401)
+      .json({ message: "Нет токена, авторизация отклонена" });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    res.json({ message: "Доступ разрешен", userId: decoded.userId });
+  } catch (err) {
+    return res.status(401).json({ message: "Неверный токен" });
+  }
+});
+
 // const deleteAllUsers = async () => {
 //   try {
 //     // Удаление всех документов в коллекции User
